@@ -30,6 +30,7 @@ void reset()
 // --------------------------------------THE CODE START'S HERE--------------------------------------
 
 #define INITIAL_CAPACITY 10
+#define FACTOR 2
 
 typedef struct AdptArray_
 {
@@ -59,17 +60,17 @@ PAdptArray CreateAdptArray(COPY_FUNC copy_func, DEL_FUNC del_func, PRINT_FUNC pr
         reset();
         return NULL;
     }
-    arr->size = 0;
-    arr->capacity = INITIAL_CAPACITY;
-    arr->elements = (PElement *)malloc(sizeof(PElement) * arr->capacity);
+    arr->elements = malloc(sizeof(PElement) * INITIAL_CAPACITY);
     if (arr->elements == NULL)
     {
         red();
-        printf("Error: malloc failed\n");
+        printf("Error: the array is NULL\n");
         reset();
         free(arr);
         return NULL;
     }
+    arr->size = 0;
+    arr->capacity = INITIAL_CAPACITY;
     arr->del_func = del_func;
     arr->copy_func = copy_func;
     arr->print_func = print_func;
@@ -90,19 +91,17 @@ void DeleteAdptArray(PAdptArray arr)
         reset();
         return;
     }
-    int size = GetAdptArraySize(arr);
-    DEL_FUNC del = arr->del_func;
-    for (int i = 0; i < size; i++)
+    if (arr->elements != NULL)
     {
-        PElement value = GetAdptArrayAt(arr, i);
-        if (value != NULL)
+        for (int i = 0; i < arr->capacity; i++)
         {
-            del(value);
+            if (arr->elements[i] != NULL)
+            {
+                arr->del_func(arr->elements[i]);
+            }
         }
-        else
-            continue;
+        free(arr->elements);
     }
-    free(arr->elements);
     free(arr);
 }
 
@@ -123,7 +122,7 @@ Result SetAdptArrayAt(PAdptArray arr, int index, PElement element)
         reset();
         return FAIL;
     }
-    if (index >= arr->capacity)
+    if (index >= arr->size)
     {
         int new_capacity = arr->capacity * 2;
         PElement *newElements = (PElement *)realloc(arr->elements, new_capacity * sizeof(PElement));
@@ -132,28 +131,18 @@ Result SetAdptArrayAt(PAdptArray arr, int index, PElement element)
             red();
             printf("Error: realloc failed\n");
             reset();
+            free(arr);
             return FAIL;
         }
-        arr->capacity = new_capacity;
         arr->elements = newElements;
-    }
-    if (index >= arr->size)
-    {
+        for (int i = arr->size; i < new_capacity; i++)
+        {
+            arr->elements[i] = NULL;
+        }
+        arr->capacity = new_capacity;
         arr->size = index + 1;
     }
-    PElement newElement = arr->copy_func(element);
-    if (newElement == NULL)
-    {
-        red();
-        printf("Error: copy func is null\n");
-        reset();
-        return FAIL;
-    }
-    if (arr->elements[index] != NULL && arr->del_func != NULL)
-    {
-        arr->del_func(arr->elements[index]);
-    }
-    arr->elements[index] = newElement;
+    arr->elements[index] = arr->copy_func(element);
     return SUCCESS;
 }
 
@@ -173,9 +162,20 @@ PElement GetAdptArrayAt(PAdptArray arr, int index)
         reset();
         return NULL;
     }
-    blue();
-    return arr->elements[index];
-    reset();
+
+    if (arr->elements[index] != NULL)
+    {
+        blue();
+        return arr->copy_func(arr->elements[index]);
+        reset();
+    }
+    else
+    {
+        green();
+        printf("Error: the element in the given index is NULL so can't return his copy\n");
+        reset();
+        return NULL;
+    }
 }
 
 /**
@@ -211,11 +211,9 @@ void PrintDB(PAdptArray arr)
         reset();
         return;
     }
-    int size = GetAdptArraySize(arr);
-    for (int i = 0; i < size; i++)
+    for (int i = 0; i < arr->size; i++)
     {
-        PElement value = GetAdptArrayAt(arr, i);
-        if (value == NULL)
+        if (arr->elements[i] == NULL)
         {
             red();
             printf("NULL pointer at the index: %d\n", i);
@@ -224,7 +222,7 @@ void PrintDB(PAdptArray arr)
         }
         yellow();
         printf("At index %d -> ", i);
-        arr->print_func(value);
+        arr->print_func(arr->elements[i]);
         reset();
         printf("\n");
     }
